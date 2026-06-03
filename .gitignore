@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+src-tauri/target/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Local environment
+.env
+.env.*
+
+# OS and editor files
+.DS_Store
+.idea/
+.vscode/
+
+# Imported design archive
+Cross-platform SSH_SFTP Client UI.zip

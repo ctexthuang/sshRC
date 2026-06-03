@@ -1,0 +1,113 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+  SSHCR_GITHUB_REPO: ${{ github.repository }}
+
+jobs:
+  build:
+    name: Build ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: macos-arm64
+            os: macos-15
+            rust_target: aarch64-apple-darwin
+            bundle: dmg
+            asset_name: sshCR-macos-arm64.dmg
+            bundle_dir: src-tauri/target/aarch64-apple-darwin/release/bundle/dmg
+            bundle_glob: "*.dmg"
+          - label: macos-amd64
+            os: macos-15-intel
+            rust_target: x86_64-apple-darwin
+            bundle: dmg
+            asset_name: sshCR-macos-amd64.dmg
+            bundle_dir: src-tauri/target/x86_64-apple-darwin/release/bundle/dmg
+            bundle_glob: "*.dmg"
+          - label: windows-amd64
+            os: windows-latest
+            rust_target: x86_64-pc-windows-msvc
+            bundle: nsis
+            asset_name: sshCR-windows-amd64.exe
+            bundle_dir: src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis
+            bundle_glob: "*.exe"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Tauri installer
+        run: pnpm tauri build --target ${{ matrix.rust_target }} --bundles ${{ matrix.bundle }} --ci --no-sign
+
+      - name: Normalize macOS asset
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
+          artifact="$(find "${{ matrix.bundle_dir }}" -maxdepth 1 -type f -name '${{ matrix.bundle_glob }}' | head -n 1)"
+          test -n "$artifact"
+          cp "$artifact" "release-assets/${{ matrix.asset_name }}"
+
+      - name: Normalize Windows asset
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force release-assets | Out-Null
+          $artifact = Get-ChildItem -Path "${{ matrix.bundle_dir }}" -Filter "${{ matrix.bundle_glob }}" | Select-Object -First 1
+          if (-not $artifact) {
+            throw "No installer found in ${{ matrix.bundle_dir }}"
+          }
+          Copy-Item $artifact.FullName "release-assets/${{ matrix.asset_name }}"
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.label }}
+          path: release-assets/${{ matrix.asset_name }}
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Download installer artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-assets/*
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
