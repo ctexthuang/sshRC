@@ -442,10 +442,10 @@ interface SshKeyModalProps {
 
 function SshKeyModal({ mode, keyRecord, onClose, onSaved, onError }: SshKeyModalProps) {
   const { t } = useI18n();
-  const [name, setName] = useState(keyRecord?.name || (mode === "generate" ? "sshcr-ed25519" : ""));
-  const [keyPath, setKeyPath] = useState(keyRecord?.keyPath || (mode === "generate" ? "~/.ssh/sshcr_ed25519" : ""));
+  const [name, setName] = useState(keyRecord?.name || (mode === "generate" ? "sshRC-ed25519" : ""));
+  const [keyPath, setKeyPath] = useState(keyRecord?.keyPath || (mode === "generate" ? "~/.ssh/sshRC_ed25519" : ""));
   const [algorithm, setAlgorithm] = useState(keyRecord?.type || "ED25519");
-  const [comment, setComment] = useState(keyRecord?.comment.includes("/") ? "sshcr@local" : keyRecord?.comment || "sshcr@local");
+  const [comment, setComment] = useState(keyRecord?.comment.includes("/") ? "sshRC@local" : keyRecord?.comment || "sshRC@local");
   const [publicKey, setPublicKey] = useState(keyRecord?.publicKey || "");
   const [fingerprint, setFingerprint] = useState(keyRecord?.fingerprint || "");
   const [encrypted, setEncrypted] = useState(keyRecord?.encrypted ?? true);
@@ -453,7 +453,7 @@ function SshKeyModal({ mode, keyRecord, onClose, onSaved, onError }: SshKeyModal
   const [saving, setSaving] = useState(false);
 
   const effectivePublicKey = publicKey || buildPreviewPublicKey(algorithm, comment);
-  const effectiveFingerprint = fingerprint || buildPreviewFingerprint(name || keyPath || "sshcr");
+  const effectiveFingerprint = fingerprint || buildPreviewFingerprint(name || keyPath || "sshRC");
 
   const save = async () => {
     if (!name.trim() || !keyPath.trim()) {
@@ -631,7 +631,7 @@ function buildPreviewPublicKey(algorithm: string, comment: string) {
   const body = algorithm === "ED25519"
     ? "AAAAC3NzaC1lZDI1NTE5AAAAIPreviewGeneratedKey"
     : "AAAAB3NzaC1yc2EAAAADAQABAAABAQCPreviewGeneratedKey";
-  return `${prefix} ${body} ${comment || "sshcr@local"}`;
+  return `${prefix} ${body} ${comment || "sshRC@local"}`;
 }
 
 function buildPreviewFingerprint(seed: string) {

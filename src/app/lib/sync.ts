@@ -75,7 +75,7 @@ function writeSyncPayload(settings: SyncSettings, payload: StoredSyncPayload) {
 }
 
 function syncStorageKey(settings: SyncSettings) {
-  return `${SYNC_STORAGE_PREFIX}${encodeURIComponent(`${settings.provider}:${settings.fragment.trim() || "sshcr-sync"}`)}`;
+  return `${SYNC_STORAGE_PREFIX}${encodeURIComponent(`${settings.provider}:${settings.fragment.trim() || "sshRC-sync"}`)}`;
 }
 
 function applySyncScope(content: string, settings: SyncSettings) {

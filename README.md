@@ -1,8 +1,8 @@
-# sshCR
+# sshRC
 
 中文 | [English](#english)
 
-sshCR 是一个跨平台 SSH/SFTP 桌面客户端，基于 Tauri 2、React、Vite 和 Rust 构建。它以本地数据为主，适合管理常用主机、打开 SSH 终端、浏览远程文件、管理 SSH 密钥，并在多设备之间同步配置。
+sshRC 是一个跨平台 SSH/SFTP 桌面客户端，基于 Tauri 2、React、Vite 和 Rust 构建。它以本地数据为主，适合管理常用主机、打开 SSH 终端、浏览远程文件、管理 SSH 密钥，并在多设备之间同步配置。
 
 ## 功能
 
@@ -10,7 +10,7 @@ sshCR 是一个跨平台 SSH/SFTP 桌面客户端，基于 Tauri 2、React、Vit
 - SSH 终端：在桌面应用中打开真实 SSH 会话。
 - SFTP 文件管理：浏览远程目录、上传、下载、新建文件夹和删除文件。
 - SSH 密钥管理：保存密钥记录、公钥、指纹和使用关系。
-- 数据导入导出：支持 sshCR JSON，也支持从 Termora JSON 导入主机和密钥。
+- 数据导入导出：支持 sshRC JSON，也支持从 Termora JSON 导入主机和密钥。
 - 配置同步：可配置 GitHub、GitLab、Gitee 或 WebDAV 同步槽。
 - 发布下载：设置页内置 GitHub Release 入口，可下载当前平台安装包。
 
@@ -54,7 +54,7 @@ pnpm tauri:dev
 
 ## 数据导入与同步
 
-- “设置 / 数据管理”可以导入或导出 sshCR JSON。
+- “设置 / 数据管理”可以导入或导出 sshRC JSON。
 - Termora 导入支持 `hosts` 与 `keyPairs`。Termora 密码不会保存；私钥会导入到本地应用数据目录。
 - “设置 / 同步”可以配置同步服务、令牌、同步片段、同步策略和同步范围。
 
@@ -68,11 +68,11 @@ pnpm tauri:build
 
 发布打包由 GitHub Actions 处理。推送 `v*` tag 后会构建并上传：
 
-- `sshCR-macos-arm64.dmg`
-- `sshCR-macos-amd64.dmg`
-- `sshCR-windows-amd64.exe`
+- `sshRC-v0.1.0-macos-arm64.dmg`
+- `sshRC-v0.1.0-macos-amd64.dmg`
+- `sshRC-v0.1.0-windows-amd64.exe`
 
-应用内下载逻辑使用这些固定文件名。安装包下载时会先写入 `*.download` 临时文件，完成后再重命名并打开，避免打开未下载完成的缓存文件。
+发布流程会用 git tag 同步应用内部版本，并用 tag 生成安装包文件名。安装包下载时会先写入 `*.download` 临时文件，完成后再重命名并打开，避免打开未下载完成的缓存文件。
 
 ## 许可证
 
@@ -82,7 +82,7 @@ pnpm tauri:build
 
 ## English
 
-sshCR is a cross-platform SSH/SFTP desktop client built with Tauri 2, React, Vite, and Rust. It is local-first and helps you manage hosts, open SSH terminals, browse remote files, manage SSH keys, and sync configuration across devices.
+sshRC is a cross-platform SSH/SFTP desktop client built with Tauri 2, React, Vite, and Rust. It is local-first and helps you manage hosts, open SSH terminals, browse remote files, manage SSH keys, and sync configuration across devices.
 
 ## Features
 
@@ -90,7 +90,7 @@ sshCR is a cross-platform SSH/SFTP desktop client built with Tauri 2, React, Vit
 - SSH terminal: open real SSH sessions in the desktop app.
 - SFTP file manager: browse remote folders, upload, download, create folders, and delete files.
 - SSH key management: keep key records, public keys, fingerprints, and usage relationships.
-- Data import/export: supports sshCR JSON and Termora JSON imports.
+- Data import/export: supports sshRC JSON and Termora JSON imports.
 - Settings sync: configure GitHub, GitLab, Gitee, or WebDAV sync slots.
 - Release downloads: the Settings page includes GitHub Release links and platform-specific installer downloads.
 
@@ -134,7 +134,7 @@ The browser preview uses mock data. Real SSH, SFTP, local database access, and s
 
 ## Import And Sync
 
-- “Settings / Data Management” imports or exports sshCR JSON.
+- “Settings / Data Management” imports or exports sshRC JSON.
 - Termora import supports `hosts` and `keyPairs`. Termora passwords are not saved; private keys are imported into the local app data directory.
 - “Settings / Sync” configures sync provider, token, fragment, strategy, and scope.
 
@@ -148,11 +148,11 @@ pnpm tauri:build
 
 Release packaging is handled by GitHub Actions. Push a `v*` tag to build and upload:
 
-- `sshCR-macos-arm64.dmg`
-- `sshCR-macos-amd64.dmg`
-- `sshCR-windows-amd64.exe`
+- `sshRC-v0.1.0-macos-arm64.dmg`
+- `sshRC-v0.1.0-macos-amd64.dmg`
+- `sshRC-v0.1.0-windows-amd64.exe`
 
-The app uses these fixed asset names for built-in downloads. Installers are first written as `*.download`, then renamed and opened after the download completes, so partial files are not opened.
+The release workflow syncs the internal app version from the git tag and uses the tag in installer names. Installers are first written as `*.download`, then renamed and opened after the download completes, so partial files are not opened.
 
 ## License
 

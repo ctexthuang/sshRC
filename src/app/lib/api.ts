@@ -20,6 +20,7 @@ import type {
 } from "./types";
 
 const DEFAULT_GITHUB_REPOSITORY = "ctexthuang/sshRC";
+const BROWSER_CURRENT_VERSION = "0.1.0";
 
 let browserSshKeys = [...mockSshKeys];
 let browserConnections = [...mockConnections];
@@ -146,7 +147,7 @@ export function exportData(request: DataExportRequest = {}) {
   return command<DataExportResult>("export_data", { request }, async () => {
     const content = JSON.stringify({
       format: "sshcr.portable.v1",
-      app: "sshCR",
+      app: "sshRC",
       version: "0.1.0",
       exportedAt: new Date().toISOString(),
       connections: browserConnections,
@@ -176,7 +177,7 @@ export function checkLatestRelease() {
     const info = browserReleaseInfo();
     return {
       currentVersion: info.currentVersion,
-      tagName: `v${info.currentVersion}`,
+      tagName: info.currentVersion,
       version: info.currentVersion,
       releaseUrl: info.latestReleaseUrl,
       assetName: info.assetName,
@@ -546,9 +547,10 @@ function browserReleaseInfo(): ReleaseInfo {
   const target = browserReleaseTarget();
   const assetName = releaseAssetName(target);
   const latestReleaseUrl = `https://github.com/${repository}/releases/latest`;
+  const currentVersion = browserCurrentReleaseTag();
 
   return {
-    currentVersion: "0.1.0",
+    currentVersion,
     target,
     supported: Boolean(assetName),
     repository,
@@ -571,11 +573,21 @@ function browserReleaseTarget() {
   return "unsupported";
 }
 
-function releaseAssetName(target: string) {
-  if (target === "macos-arm64") return "sshCR-macos-arm64.dmg";
-  if (target === "macos-amd64") return "sshCR-macos-amd64.dmg";
-  if (target === "windows-amd64") return "sshCR-windows-amd64.exe";
+function releaseAssetName(target: string, tag = browserCurrentReleaseTag()) {
+  if (target === "macos-arm64") return `sshRC-${tag}-macos-arm64.dmg`;
+  if (target === "macos-amd64") return `sshRC-${tag}-macos-amd64.dmg`;
+  if (target === "windows-amd64") return `sshRC-${tag}-windows-amd64.exe`;
   return undefined;
+}
+
+function browserCurrentReleaseTag() {
+  return releaseTagFromVersion(BROWSER_CURRENT_VERSION);
+}
+
+function releaseTagFromVersion(version: string) {
+  const trimmed = version.trim();
+  if (!trimmed) return "v0.0.0";
+  return trimmed[0].toLowerCase() === "v" ? `v${trimmed.slice(1)}` : `v${trimmed}`;
 }
 
 function parentPath(path: string) {

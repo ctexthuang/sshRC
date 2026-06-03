@@ -48,5 +48,5 @@ pub fn run() {
             commands::terminal::stop_terminal_session,
         ])
         .run(tauri::generate_context!())
-        .expect("error while running sshCR");
+        .expect("error while running sshRC");
 }

@@ -2,7 +2,7 @@
 name = "sshcr"
 version = "0.1.0"
 description = "Cross-platform SSH and SFTP client"
-authors = ["sshCR contributors"]
+authors = ["sshRC contributors"]
 license = "GPL-3.0-only"
 repository = "https://github.com/ctexthuang/sshRC"
 edition = "2021"

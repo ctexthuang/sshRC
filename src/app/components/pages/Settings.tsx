@@ -193,7 +193,7 @@ function formatExportResult(result: DataExportResult, t: (key: string, params?: 
   return t("settingsExportResult", {
     connections: result.connectionsExported,
     keys: result.sshKeysExported,
-    path: result.path || "sshcr-export.json",
+    path: result.path || "sshRC-export.json",
   });
 }
 
@@ -236,6 +236,12 @@ function formatLatestReleaseResult(result: LatestReleaseInfo, t: (key: string, p
     return t("settingsUpdateAvailable", { version: result.version });
   }
   return t("settingsUpdateLatest", { version: result.currentVersion });
+}
+
+function isReleaseNotFoundError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes("GitHub latest release was not found")
+    || message.includes("404 Not Found");
 }
 
 function downloadJson(content: string, filename: string) {
@@ -299,7 +305,7 @@ export function Settings({ settings, onSettingsChange, onDataChanged }: Settings
     setDataMessage("");
     try {
       const result = await exportData({});
-      downloadJson(result.content, "sshcr-export.json");
+      downloadJson(result.content, "sshRC-export.json");
       setDataMessage(formatExportResult(result, t));
     } catch (err) {
       setDataError(err instanceof Error ? err.message : String(err));
@@ -360,7 +366,11 @@ export function Settings({ settings, onSettingsChange, onDataChanged }: Settings
       const result = await checkLatestRelease();
       setReleaseMessage(formatLatestReleaseResult(result, t));
     } catch (err) {
-      setReleaseError(err instanceof Error ? err.message : String(err));
+      if (isReleaseNotFoundError(err)) {
+        setReleaseMessage(t("settingsReleaseNotFound"));
+      } else {
+        setReleaseError(err instanceof Error ? err.message : String(err));
+      }
     } finally {
       setReleaseBusy(null);
     }
@@ -452,13 +462,7 @@ export function Settings({ settings, onSettingsChange, onDataChanged }: Settings
               </div>
             </SettingRow>
 
-            <SettingRow label={t("settingsCompactMode")} description={t("settingsCompactModeDesc")}>
-              <Toggle checked={settings.compactMode} onChange={compactMode => onSettingsChange({ compactMode })} />
-            </SettingRow>
-
-            <SettingRow label={t("settingsLargeRadius")} description={t("settingsLargeRadiusDesc")}>
-              <Toggle checked={settings.largeRadius} onChange={largeRadius => onSettingsChange({ largeRadius })} />
-            </SettingRow>
+            {/* Compact mode and large-radius settings are kept in AppSettings for compatibility, but hidden until needed. */}
           </SectionCard>
 
           {/* Terminal */}
@@ -519,7 +523,7 @@ export function Settings({ settings, onSettingsChange, onDataChanged }: Settings
               <div className="mt-3 p-3 rounded-xl overflow-hidden"
                 style={{ backgroundColor: terminalThemes.find(t => t.id === settings.terminalTheme)?.bg || "#15171d" }}>
                 <p style={{ fontFamily: `'${settings.terminalFontFamily}', monospace`, fontSize: settings.terminalFontSize, lineHeight: 1.6, color: terminalThemes.find(t => t.id === settings.terminalTheme)?.accent, margin: 0 }}>
-                  user@sshcr:~$
+                  user@sshRC:~$
                   <span style={{ color: terminalThemes.find(t => t.id === settings.terminalTheme)?.fg }}> ls -la</span>
                 </p>
                 <p style={{ fontFamily: `'${settings.terminalFontFamily}', monospace`, fontSize: settings.terminalFontSize, lineHeight: 1.6, color: terminalThemes.find(t => t.id === settings.terminalTheme)?.fg, opacity: 0.8, margin: 0 }}>
@@ -753,7 +757,7 @@ export function Settings({ settings, onSettingsChange, onDataChanged }: Settings
                 <div>
                   <p style={{ fontSize: 14, fontWeight: 600, color: "var(--foreground)" }}>{t("appName")}</p>
                   <p style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 3 }}>
-                    {t("settingsVersion", { version: releaseInfo?.currentVersion || "0.1.0" })}
+                    {t("settingsVersion", { version: releaseInfo?.currentVersion || "v0.1.0" })}
                   </p>
                   <p style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 3 }}>
                     {t("settingsReleaseTarget", { target: releaseInfo?.target || "..." })}

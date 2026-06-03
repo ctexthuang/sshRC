@@ -31,7 +31,7 @@ pub async fn export_data(
     let ssh_keys = export_ssh_keys(&state.pool).await?;
     let bundle = SshcrExportBundle {
         format: SSHCR_EXPORT_FORMAT.into(),
-        app: "sshCR".into(),
+        app: "sshRC".into(),
         version: env!("CARGO_PKG_VERSION").into(),
         exported_at: current_timestamp(),
         connections,
@@ -80,7 +80,7 @@ pub async fn import_data(
         import_sshcr_bundle(&state.pool, bundle).await
     } else {
         Err(AppError::InvalidInput(
-            "unsupported import format: expected sshCR or Termora JSON".into(),
+            "unsupported import format: expected sshRC or Termora JSON".into(),
         ))
     }
 }

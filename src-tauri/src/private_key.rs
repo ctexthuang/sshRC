@@ -235,7 +235,7 @@ fn format_ed25519_openssh_key(seed: &[u8; 32]) -> Option<String> {
     push_ssh_string(&mut private_blob, b"ssh-ed25519");
     push_ssh_string(&mut private_blob, public_key);
     push_ssh_string(&mut private_blob, &key_material);
-    push_ssh_string(&mut private_blob, b"sshCR imported key");
+    push_ssh_string(&mut private_blob, b"sshRC imported key");
 
     let mut padding = 1_u8;
     while private_blob.len() % 8 != 0 {

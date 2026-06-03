@@ -66,7 +66,7 @@ export const defaultAppSettings: AppSettings = {
     enabled: false,
     provider: "gitee",
     token: "",
-    fragment: "sshcr-sync",
+    fragment: "sshRC-sync",
     strategy: "on-change",
     scope: {
       connections: true,

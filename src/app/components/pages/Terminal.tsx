@@ -853,7 +853,7 @@ function writeMockInput(
       term.write("\r\n");
       runMockCommand(term, command, t);
       inputRef.current = "";
-      term.write("demo@sshcr:~$ ");
+      term.write("demo@sshRC:~$ ");
     } else if (char === "\u007f") {
       if (inputRef.current.length > 0) {
         inputRef.current = inputRef.current.slice(0, -1);
@@ -861,7 +861,7 @@ function writeMockInput(
       }
     } else if (char === "\u0003") {
       inputRef.current = "";
-      term.write("^C\r\ndemo@sshcr:~$ ");
+      term.write("^C\r\ndemo@sshRC:~$ ");
     } else if (char >= " ") {
       inputRef.current += char;
       term.write(char);

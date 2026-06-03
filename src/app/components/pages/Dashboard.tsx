@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   Server, Wifi, Clock, HardDrive, Plus, Star, ArrowRight,
-  Activity, Upload, Download, Terminal, FolderOpen, TrendingUp,
+  Activity, Upload, Download, Terminal, FolderOpen,
   Shield, ChevronRight
 } from "lucide-react";
 import { dashboardSummary } from "../../lib/api";
@@ -16,10 +16,11 @@ interface DashboardProps {
 }
 
 export function Dashboard({ onNavigate, onOpenNewConnection, isMobile, refreshToken }: DashboardProps) {
-  const { t } = useI18n();
+  const { language, t } = useI18n();
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [error, setError] = useState("");
+  const dashboardDate = formatDashboardDate(language);
 
   useEffect(() => {
     dashboardSummary()
@@ -36,7 +37,8 @@ export function Dashboard({ onNavigate, onOpenNewConnection, isMobile, refreshTo
     { label: t("dashboardTotalHosts"), value: String(summary?.totalHosts ?? 0), sub: t("dashboardSavedProfiles"), icon: Server, color: "#2563eb", bg: "#eff6ff" },
     { label: t("dashboardActiveSessions"), value: String(summary?.activeSessions ?? 0), sub: t("dashboardSshShells"), icon: Activity, color: "#10b981", bg: "#ecfdf5" },
     { label: t("dashboardTransfersToday"), value: String(summary?.transfersToday ?? 0), sub: formatBytes(summary?.transferBytesToday || 0), icon: HardDrive, color: "#8b5cf6", bg: "#f5f3ff" },
-    { label: t("dashboardBackend"), value: "SQLite", sub: t("dashboardLocalFirst"), icon: TrendingUp, color: "#f59e0b", bg: "#fffbeb" },
+    // Backend storage is internal for now, so keep this card hidden from the dashboard.
+    // { label: t("dashboardBackend"), value: "SQLite", sub: t("dashboardLocalFirst"), icon: TrendingUp, color: "#f59e0b", bg: "#fffbeb" },
   ];
 
   return (
@@ -46,7 +48,7 @@ export function Dashboard({ onNavigate, onOpenNewConnection, isMobile, refreshTo
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-foreground" style={{ fontSize: 22, fontWeight: 600, lineHeight: 1.3 }}>{t("dashboardTitle")}</h1>
-            <p style={{ fontSize: 13 }} className="text-muted-foreground mt-0.5">{t("dashboardSubtitle", { count: summary?.activeSessions ?? 0 })}</p>
+            <p style={{ fontSize: 13 }} className="text-muted-foreground mt-0.5">{t("dashboardSubtitle", { date: dashboardDate, count: summary?.activeSessions ?? 0 })}</p>
           </div>
           <button
             onClick={onOpenNewConnection}
@@ -66,7 +68,7 @@ export function Dashboard({ onNavigate, onOpenNewConnection, isMobile, refreshTo
         )}
 
         {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
           {liveStats.map((stat) => (
             <div key={stat.label} className="rounded-2xl p-4 border transition-shadow hover:shadow-md"
               style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}>
@@ -216,6 +218,27 @@ function formatLastSeen(value: string | null | undefined, t: (key: string) => st
   if (!value) return t("commonNever");
   if (value.includes("ago")) return value;
   return value.includes("T") ? value.split("T")[0] : value.split(" ")[0];
+}
+
+function formatDashboardDate(language: string) {
+  const today = new Date();
+  if (language === "zh-CN") {
+    const parts = new Intl.DateTimeFormat("zh-CN", {
+      timeZone: "Asia/Shanghai",
+      month: "numeric",
+      day: "numeric",
+      weekday: "long",
+    }).formatToParts(today);
+    const month = parts.find(part => part.type === "month")?.value || String(today.getMonth() + 1);
+    const day = parts.find(part => part.type === "day")?.value || String(today.getDate());
+    const weekday = parts.find(part => part.type === "weekday")?.value || new Intl.DateTimeFormat("zh-CN", { weekday: "long" }).format(today);
+    return `${month} 月 ${day} 日，${weekday}`;
+  }
+  return new Intl.DateTimeFormat("en", {
+    month: "long",
+    day: "numeric",
+    weekday: "long",
+  }).format(today);
 }
 
 function formatBytes(bytes: number) {

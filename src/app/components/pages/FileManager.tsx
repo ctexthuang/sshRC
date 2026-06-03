@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type DragEvent } from "react";
 import {
   Folder, FolderOpen, File, FileText, FileCode, Image, Archive,
   ChevronRight, Upload, Download, Plus, Trash2,
@@ -13,7 +13,7 @@ import {
   listSftpDirectory,
   uploadSftpFile,
 } from "../../lib/api";
-import type { RemoteFileEntry } from "../../lib/types";
+import type { Connection, RemoteFileEntry } from "../../lib/types";
 import { useI18n } from "../../lib/i18n";
 
 interface FileEntry {
@@ -229,9 +229,10 @@ function FileOperationDialog({
 interface FileManagerProps {
   isMobile: boolean;
   connectionId?: string;
+  connection?: Connection | null;
 }
 
-export function FileManager({ isMobile, connectionId }: FileManagerProps) {
+export function FileManager({ isMobile, connectionId, connection }: FileManagerProps) {
   const { t } = useI18n();
   const [currentPath, setCurrentPath] = useState("/");
   const [selected, setSelected] = useState<string[]>([]);
@@ -246,6 +247,8 @@ export function FileManager({ isMobile, connectionId }: FileManagerProps) {
   const [dialog, setDialog] = useState<FileDialog | null>(null);
   const [dialogValue, setDialogValue] = useState("");
   const [reloadToken, setReloadToken] = useState(0);
+  const [dragDepth, setDragDepth] = useState(0);
+  const [dragActive, setDragActive] = useState(false);
 
   useEffect(() => {
     if (!connectionId && isTauriRuntime()) {
@@ -266,6 +269,47 @@ export function FileManager({ isMobile, connectionId }: FileManagerProps) {
       });
   }, [connectionId, currentPath, reloadToken, t]);
 
+  useEffect(() => {
+    if (!isTauriRuntime()) return;
+
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+
+    import("@tauri-apps/api/webview")
+      .then(({ getCurrentWebview }) =>
+        getCurrentWebview().onDragDropEvent(event => {
+          const payload = event.payload;
+          if (payload.type === "enter" || payload.type === "over") {
+            setDragActive(true);
+            return;
+          }
+          if (payload.type === "leave") {
+            setDragActive(false);
+            setDragDepth(0);
+            return;
+          }
+          if (payload.type === "drop") {
+            setDragActive(false);
+            setDragDepth(0);
+            void uploadDroppedPaths(payload.paths);
+          }
+        })
+      )
+      .then(cleanup => {
+        if (disposed) {
+          cleanup();
+        } else {
+          unlisten = cleanup;
+        }
+      })
+      .catch(err => setLoadError(err instanceof Error ? err.message : String(err)));
+
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, [connectionId, currentPath, t]);
+
   const allFiles = remoteFiles.map(toFileEntry);
   const files = allFiles.filter(f =>
     !search || f.name.toLowerCase().includes(search.toLowerCase())
@@ -274,6 +318,12 @@ export function FileManager({ isMobile, connectionId }: FileManagerProps) {
   const selectedFiles = allFiles.filter(file => selected.includes(file.path));
 
   const pathParts = currentPath.split("/").filter(Boolean);
+  const connectionName = connection?.name || (connectionId ? t("filesRemoteHost") : t("filesPreviewSftp"));
+  const connectionAddress = connection
+    ? `${connection.username}@${connection.host}:${connection.port}`
+    : connectionId
+      ? t("filesSftpSession")
+      : t("commonPreview");
 
   const selectPath = (path: string) => {
     setCurrentPath(path);
@@ -323,6 +373,77 @@ export function FileManager({ isMobile, connectionId }: FileManagerProps) {
   const handleUpload = () => {
     setDialogValue("");
     setDialog({ type: "upload" });
+  };
+
+  const uploadDroppedPaths = async (paths: string[]) => {
+    const filePaths = paths.filter(Boolean);
+    if (filePaths.length === 0) return;
+
+    await runOperation(async () => {
+      const id = activeConnectionId();
+      if (!id) return;
+
+      let uploaded = 0;
+      for (const localPath of filePaths) {
+        const name = basename(localPath);
+        if (!name) continue;
+
+        const transferId = addTransfer(name, "up");
+        try {
+          const result = await uploadSftpFile(id, localPath, joinRemotePath(currentPath, name));
+          finishTransfer(transferId, result.bytes);
+          uploaded += 1;
+        } catch (err) {
+          removeTransfer(transferId);
+          throw err;
+        }
+      }
+
+      setOperationMessage(t("filesDroppedUploadResult", { count: uploaded }));
+      refresh();
+    });
+  };
+
+  const uploadDroppedBrowserFiles = async (files: File[]) => {
+    if (files.length === 0) return;
+    await uploadDroppedPaths(files.map(file => file.name));
+  };
+
+  const handleDragEnter = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setDragDepth(depth => depth + 1);
+    setDragActive(true);
+  };
+
+  const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = "copy";
+    setDragActive(true);
+  };
+
+  const handleDragLeave = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setDragDepth(depth => {
+      const next = Math.max(0, depth - 1);
+      if (next === 0) setDragActive(false);
+      return next;
+    });
+  };
+
+  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setDragDepth(0);
+    setDragActive(false);
+
+    if (isTauriRuntime()) {
+      return;
+    }
+
+    void uploadDroppedBrowserFiles(Array.from(event.dataTransfer.files));
   };
 
   const handleDownloadSelected = () => {
@@ -449,21 +570,54 @@ export function FileManager({ isMobile, connectionId }: FileManagerProps) {
   };
 
   return (
-    <div className="h-full flex flex-col" style={{ backgroundColor: "var(--background)" }}>
+    <div
+      className="relative h-full flex flex-col"
+      style={{ backgroundColor: "var(--background)" }}
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {dragActive && (
+        <div
+          className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center"
+          style={{ backgroundColor: "rgba(37,99,235,0.12)", backdropFilter: "blur(2px)" }}
+        >
+          <div
+            className="flex items-center gap-3 rounded-2xl border px-5 py-4 shadow-xl"
+            style={{ backgroundColor: "var(--card)", borderColor: "var(--primary)", color: "var(--foreground)" }}
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ backgroundColor: "var(--accent)", color: "var(--primary)" }}>
+              <Upload size={18} />
+            </div>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>{t("filesDropUploadTitle")}</div>
+              <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>
+                {t("filesDropUploadTarget", { path: currentPath })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div className="px-5 lg:px-7 py-4 border-b flex items-center justify-between flex-shrink-0"
         style={{ borderColor: "var(--border)", backgroundColor: "var(--background)" }}>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex flex-shrink-0 items-center gap-1.5">
             <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "var(--online)" }} />
             <span style={{ fontSize: 13, fontWeight: 500, color: "var(--foreground)" }}>
-              {connectionId ? t("filesRemoteHost") : t("filesPreviewSftp")}
+              {t("filesCurrentConnection")}
             </span>
           </div>
           <span style={{ color: "var(--border)" }}>·</span>
-          <span style={{ fontSize: 12, color: "var(--muted-foreground)", fontFamily: "'JetBrains Mono', monospace" }}>
-            {connectionId ? t("filesSftpSession") : t("commonPreview")}
-          </span>
+          <div className="min-w-0">
+            <div className="truncate" style={{ fontSize: 13, fontWeight: 600, color: "var(--foreground)" }}>
+              {connectionName}
+            </div>
+            <div className="truncate" style={{ fontSize: 12, color: "var(--muted-foreground)", fontFamily: "'JetBrains Mono', monospace", marginTop: 1 }}>
+              {connectionAddress}
+            </div>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={refresh} disabled={busy}

@@ -24,21 +24,21 @@ jobs:
             os: macos-15
             rust_target: aarch64-apple-darwin
             bundle: dmg
-            asset_name: sshCR-macos-arm64.dmg
+            asset_ext: dmg
             bundle_dir: src-tauri/target/aarch64-apple-darwin/release/bundle/dmg
             bundle_glob: "*.dmg"
           - label: macos-amd64
             os: macos-15-intel
             rust_target: x86_64-apple-darwin
             bundle: dmg
-            asset_name: sshCR-macos-amd64.dmg
+            asset_ext: dmg
             bundle_dir: src-tauri/target/x86_64-apple-darwin/release/bundle/dmg
             bundle_glob: "*.dmg"
           - label: windows-amd64
             os: windows-latest
             rust_target: x86_64-pc-windows-msvc
             bundle: nsis
-            asset_name: sshCR-windows-amd64.exe
+            asset_ext: exe
             bundle_dir: src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis
             bundle_glob: "*.exe"
 
@@ -60,6 +60,9 @@ jobs:
         with:
           targets: ${{ matrix.rust_target }}
 
+      - name: Sync app version from tag
+        run: node scripts/sync-release-version.mjs "${{ github.ref_name }}"
+
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
 
@@ -74,7 +77,8 @@ jobs:
           mkdir -p release-assets
           artifact="$(find "${{ matrix.bundle_dir }}" -maxdepth 1 -type f -name '${{ matrix.bundle_glob }}' | head -n 1)"
           test -n "$artifact"
-          cp "$artifact" "release-assets/${{ matrix.asset_name }}"
+          asset_name="sshRC-${{ github.ref_name }}-${{ matrix.label }}.${{ matrix.asset_ext }}"
+          cp "$artifact" "release-assets/$asset_name"
 
       - name: Normalize Windows asset
         if: runner.os == 'Windows'
@@ -85,13 +89,14 @@ jobs:
           if (-not $artifact) {
             throw "No installer found in ${{ matrix.bundle_dir }}"
           }
-          Copy-Item $artifact.FullName "release-assets/${{ matrix.asset_name }}"
+          $assetName = "sshRC-${{ github.ref_name }}-${{ matrix.label }}.${{ matrix.asset_ext }}"
+          Copy-Item $artifact.FullName "release-assets/$assetName"
 
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.label }}
-          path: release-assets/${{ matrix.asset_name }}
+          path: release-assets/*
           if-no-files-found: error
 
   release:
