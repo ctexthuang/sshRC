@@ -3,19 +3,128 @@ name: Release
 on:
   push:
     tags:
-      - "v*"
+      - "v*.*.*"
 
 permissions:
   contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 env:
   CARGO_TERM_COLOR: always
   SSHCR_GITHUB_REPO: ${{ github.repository }}
 
 jobs:
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.release.outputs.result }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build release notes from commits
+        id: release-notes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          tag="$GITHUB_REF_NAME"
+          target_commit="$(git rev-list -n 1 "$tag")"
+          previous_tag=""
+          if git rev-parse "${target_commit}^" >/dev/null 2>&1; then
+            previous_tag="$(
+              git describe --tags --abbrev=0 \
+                --match 'v[0-9]*.[0-9]*.[0-9]*' \
+                --match '[0-9]*.[0-9]*.[0-9]*' \
+                "${target_commit}^" 2>/dev/null || true
+            )"
+          fi
+          notes_file="$RUNNER_TEMP/release-notes.md"
+
+          {
+            echo "## Commits"
+            echo
+            if [[ -n "$previous_tag" ]]; then
+              echo "Changes since \`$previous_tag\`:"
+              echo
+              commit_range="$previous_tag..$target_commit"
+            else
+              echo "Initial release commits:"
+              echo
+              commit_range="$target_commit"
+            fi
+
+            commit_lines="$(git log --pretty=format:'- `%h` %s (%an)' "$commit_range")"
+            if [[ -n "$commit_lines" ]]; then
+              printf '%s\n' "$commit_lines"
+            else
+              echo "- No commits found."
+            fi
+          } > "$notes_file"
+
+          echo "notes_file=$notes_file" >> "$GITHUB_OUTPUT"
+          echo "target_commit=$target_commit" >> "$GITHUB_OUTPUT"
+
+      - name: Create or reuse release
+        id: release
+        uses: actions/github-script@v7
+        env:
+          RELEASE_NOTES_FILE: ${{ steps.release-notes.outputs.notes_file }}
+          TARGET_COMMIT: ${{ steps.release-notes.outputs.target_commit }}
+        with:
+          result-encoding: string
+          script: |
+            const fs = require("node:fs");
+            const tag = context.ref.replace("refs/tags/", "");
+            const { owner, repo } = context.repo;
+            const body = fs.readFileSync(process.env.RELEASE_NOTES_FILE, "utf8");
+
+            try {
+              const existing = await github.rest.repos.getReleaseByTag({
+                owner,
+                repo,
+                tag,
+              });
+              await github.rest.repos.updateRelease({
+                owner,
+                repo,
+                release_id: existing.data.id,
+                name: `sshRC ${tag}`,
+                target_commitish: process.env.TARGET_COMMIT,
+                body,
+              });
+              core.info(`Using existing release ${existing.data.html_url}`);
+              return String(existing.data.id);
+            } catch (error) {
+              if (error.status !== 404) {
+                throw error;
+              }
+            }
+
+            const prerelease = /(?:^|[-.])(alpha|beta|rc|preview)(?:[-.]|$)/i.test(tag);
+            const release = await github.rest.repos.createRelease({
+              owner,
+              repo,
+              tag_name: tag,
+              name: `sshRC ${tag}`,
+              target_commitish: process.env.TARGET_COMMIT,
+              draft: false,
+              prerelease,
+              body,
+            });
+            core.info(`Created release ${release.data.html_url}`);
+            return String(release.data.id);
+
   build:
     name: Build ${{ matrix.label }}
     runs-on: ${{ matrix.os }}
+    needs: create-release
     strategy:
       fail-fast: false
       matrix:
@@ -94,42 +203,10 @@ jobs:
           $assetName = "sshRC-${{ github.ref_name }}-${{ matrix.label }}.${{ matrix.asset_ext }}"
           Copy-Item $artifact.FullName "release-assets/$assetName"
 
-      - name: Upload installer artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.label }}
-          path: release-assets/*
-          if-no-files-found: error
-
-  release:
-    name: Publish GitHub Release
-    runs-on: ubuntu-latest
-    needs: build
-    if: ${{ always() }}
-    steps:
-      - name: Download installer artifacts
-        uses: actions/download-artifact@v4
-        continue-on-error: true
-        with:
-          path: release-assets
-          merge-multiple: true
-
-      - name: Verify installer artifacts
-        shell: bash
-        run: |
-          shopt -s nullglob
-          files=(release-assets/*)
-          if (( ${#files[@]} == 0 )); then
-            echo "No installer artifacts were produced by successful builds."
-            exit 1
-          fi
-          printf 'Publishing %s installer artifact(s):\n' "${#files[@]}"
-          printf ' - %s\n' "${files[@]}"
-
-      - name: Publish release
+      - name: Upload installer to release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.ref_name }}
           files: release-assets/*
           fail_on_unmatched_files: true
-          generate_release_notes: true
-          prerelease: ${{ contains(github.ref_name, '-') }}
+          overwrite_files: true
