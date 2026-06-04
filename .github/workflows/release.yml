@@ -105,16 +105,31 @@ jobs:
     name: Publish GitHub Release
     runs-on: ubuntu-latest
     needs: build
+    if: ${{ always() }}
     steps:
       - name: Download installer artifacts
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           path: release-assets
           merge-multiple: true
+
+      - name: Verify installer artifacts
+        shell: bash
+        run: |
+          shopt -s nullglob
+          files=(release-assets/*)
+          if (( ${#files[@]} == 0 )); then
+            echo "No installer artifacts were produced by successful builds."
+            exit 1
+          fi
+          printf 'Publishing %s installer artifact(s):\n' "${#files[@]}"
+          printf ' - %s\n' "${files[@]}"
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
           files: release-assets/*
+          fail_on_unmatched_files: true
           generate_release_notes: true
           prerelease: ${{ contains(github.ref_name, '-') }}
