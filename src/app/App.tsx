@@ -87,6 +87,7 @@ export default function App() {
   const [terminalOpenRequest, setTerminalOpenRequest] = useState<TerminalOpenRequest | undefined>();
   const [fileConnectionId, setFileConnectionId] = useState<string | undefined>();
   const [activeFileConnection, setActiveFileConnection] = useState<Connection | null>(null);
+  const [filePaths, setFilePaths] = useState<Record<string, string>>({});
   const [pendingFtpSwitch, setPendingFtpSwitch] = useState<PendingFtpSwitch | null>(null);
   const [ftpSwitchError, setFtpSwitchError] = useState("");
   const [startupRelease, setStartupRelease] = useState<LatestReleaseInfo | null>(null);
@@ -302,15 +303,19 @@ export default function App() {
         );
       case "terminal":
         return null;
-      case "files":
+      case "files": {
+        const filePathKey = fileConnectionId || "preview";
         return (
           <FileManager
             key={fileConnectionId || "preview"}
             isMobile={isMobile}
             connectionId={fileConnectionId}
             connection={activeFileConnection}
+            currentPath={filePaths[filePathKey] || defaultSftpPath(activeFileConnection, fileConnectionId)}
+            onPathChange={path => setFilePaths(current => ({ ...current, [filePathKey]: path }))}
           />
         );
+      }
       case "keys":
         return <KeyManagement />;
       case "settings":
@@ -574,6 +579,14 @@ function FtpSwitchDialog({
 function connectionDisplayName(connection: Connection | null, fallbackId?: string) {
   if (!connection) return fallbackId || "-";
   return `${connection.name} (${connection.username}@${connection.host}:${connection.port})`;
+}
+
+function defaultSftpPath(connection: Connection | null, connectionId?: string) {
+  if (!connectionId) return "/home/ubuntu";
+  const username = connection?.username.trim();
+  if (!username) return "/";
+  if (username === "root") return "/root";
+  return `/home/${username.split("/").filter(Boolean).pop() || username}`;
 }
 
 function isReleaseNotFoundError(error: unknown) {

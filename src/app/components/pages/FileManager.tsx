@@ -230,11 +230,12 @@ interface FileManagerProps {
   isMobile: boolean;
   connectionId?: string;
   connection?: Connection | null;
+  currentPath: string;
+  onPathChange: (path: string) => void;
 }
 
-export function FileManager({ isMobile, connectionId, connection }: FileManagerProps) {
+export function FileManager({ isMobile, connectionId, connection, currentPath, onPathChange }: FileManagerProps) {
   const { t } = useI18n();
-  const [currentPath, setCurrentPath] = useState("/");
   const [selected, setSelected] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [search, setSearch] = useState("");
@@ -249,6 +250,11 @@ export function FileManager({ isMobile, connectionId, connection }: FileManagerP
   const [reloadToken, setReloadToken] = useState(0);
   const [dragDepth, setDragDepth] = useState(0);
   const [dragActive, setDragActive] = useState(false);
+
+  useEffect(() => {
+    setSelected([]);
+    setSearch("");
+  }, [connectionId, currentPath]);
 
   useEffect(() => {
     if (!connectionId && isTauriRuntime()) {
@@ -326,7 +332,7 @@ export function FileManager({ isMobile, connectionId, connection }: FileManagerP
       : t("commonPreview");
 
   const selectPath = (path: string) => {
-    setCurrentPath(path);
+    onPathChange(path);
     setSelected([]);
     setSearch("");
   };

@@ -18,9 +18,13 @@ export const mockSshKeys: SshKey[] = [];
 export const mockFiles: Record<string, RemoteFileEntry[]> = {
   "/": [
     entry("home", "/", "dir"),
+    entry("root", "/", "dir"),
     entry("var", "/", "dir"),
     entry("etc", "/", "dir"),
     entry("tmp", "/", "dir"),
+  ],
+  "/home": [
+    entry("ubuntu", "/home", "dir"),
   ],
   "/home/ubuntu": [
     entry("projects", "/home/ubuntu", "dir"),
@@ -32,6 +36,10 @@ export const mockFiles: Record<string, RemoteFileEntry[]> = {
   "/home/ubuntu/projects": [
     entry("webapp", "/home/ubuntu/projects", "dir"),
     entry("api-server", "/home/ubuntu/projects", "dir"),
+  ],
+  "/root": [
+    entry(".ssh", "/root", "dir", undefined, "drwx------"),
+    entry(".bashrc", "/root", "file", 3771, "-rw-r--r--", "sh"),
   ],
   "/var/www/html": [
     entry("index.html", "/var/www/html", "file", 2341, "-rw-r--r--", "html"),
