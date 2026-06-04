@@ -24,7 +24,7 @@ function updateJsonVersion(filePath, nextVersion) {
 
 function updateCargoVersion(filePath, nextVersion) {
   const content = readFileSync(filePath, "utf8");
-  const packageVersionPattern = /(\[package\][\s\S]*?\nversion\s*=\s*")([^"]+)(")/;
+  const packageVersionPattern = /(\[package\][\s\S]*?\r?\nversion\s*=\s*")([^"]+)(")/;
 
   if (!packageVersionPattern.test(content)) {
     throw new Error(`Could not find [package] version in ${filePath}`);
@@ -38,7 +38,7 @@ function updateCargoLockVersion(filePath, packageName, nextVersion) {
   const content = readFileSync(filePath, "utf8");
   const packageNamePattern = escapeRegExp(packageName);
   const packageVersionPattern = new RegExp(
-    `(\\[\\[package\\]\\]\\nname = "${packageNamePattern}"\\nversion = ")([^"]+)(")`,
+    `(\\[\\[package\\]\\]\\r?\\nname = "${packageNamePattern}"\\r?\\nversion = ")([^"]+)(")`,
   );
 
   if (!packageVersionPattern.test(content)) {
